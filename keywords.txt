@@ -7,3 +7,4 @@ faderSpeedSet	KEYWORD2
 faderSpeedGet	KEYWORD2
 faderCrank	KEYWORD2
 sPulse	KEYWORD2
+rgbPush2X	KEYWORD2

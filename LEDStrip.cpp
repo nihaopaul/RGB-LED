@@ -142,20 +142,35 @@ void LEDStrip::rgbPush(uint8_t redcmd, uint8_t greencmd, uint8_t bluecmd)
   pushCmd(cmd);
 }
 
+void LEDStrip::rgbPush2X(uint8_t redcmd, uint8_t greencmd, uint8_t bluecmd)
+{
+  uint8_t cmd = 0;
+  uint8_t flags = LATCH | SPEED2X;
+
+  if (redcmd >= NONCMD || bluecmd >= NONCMD || greencmd >= NONCMD) return;
+
+  cmd |= (greencmd << 4) & (_BV(5) | _BV(4));
+  cmd |= (redcmd << 2) & (_BV(3) | _BV(2));
+  cmd |= (bluecmd) & (_BV(1) | _BV(0));
+  cmd |= flags & (_BV(6) | _BV(7)); 
+
+  pushCmd(cmd);
+}
+
 void LEDStrip::sPulse()
 {
   if (digitalRead(_sPin) == HIGH) {
-    delay(1);
+    //delay(1);
     digitalWrite(_sPin, LOW);
-    delay(1);
+    delayMicroseconds(1000);
     digitalWrite(_sPin, HIGH);
-    delay(1);
+    delayMicroseconds(1000);
   } else {
-    delay(1);
+    //delay(1);
     digitalWrite(_sPin, HIGH);
-    delay(1);
+    delayMicroseconds(1000);
     digitalWrite(_sPin, LOW);
-    delay(1);
+    delayMicroseconds(1000);
   }
 
 }

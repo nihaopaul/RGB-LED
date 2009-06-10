@@ -41,6 +41,7 @@ enum {
 };
 
 #define LATCH (_BV(7))
+#define SPEED2X (_BV(6))
 
 class LEDStrip
 {
@@ -56,6 +57,7 @@ class LEDStrip
   public:
     LEDStrip(int, int, int, int);
     void rgbPush(uint8_t, uint8_t, uint8_t);
+    void rgbPush2X(uint8_t, uint8_t, uint8_t);
     void pushCmd(uint8_t);
     void blankPush();
     void latch();
