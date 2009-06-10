@@ -6,7 +6,7 @@
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
+ *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
@@ -46,30 +46,23 @@ class LEDStrip
 {
   private:
     uint8_t _dPin;
-    uint8_t _sPin;       // can only be pin 9 or 10
+    uint8_t _sPin;
     uint8_t _latchPin;
     uint8_t _clkPin;
-    uint16_t _fadeSpeed;
-    static uint8_t attached9;
-    static uint8_t attached10;
-    static void releaseTimer1();
-    static void startTimer1();
-    static void stopTimer1();
-    static void attachOCR1A();
-    static void detachOCR1A();
+    uint8_t _faderEnabled;
+    unsigned int _faderPulseHalfWidth;
+    unsigned int _faderPulseNewHalfWidth;
+    unsigned long _faderPulseNextEdge;
   public:
-    LEDStrip();
-    void sPulse();
-    void seizeTimer1();
-    uint8_t attach(int, int, int, int);
-    void detach();
-    void setSpeed(uint16_t);
-    uint16_t getSpeed();
+    LEDStrip(int, int, int, int);
     void rgbPush(uint8_t, uint8_t, uint8_t);
+    void pushCmd(uint8_t);
     void blankPush();
     void latch();
-    uint8_t attached();
-    void pushCmd(uint8_t);
+    void faderSpeedSet(unsigned int);
+    unsigned int faderSpeedGet();
+    void faderCrank();
+    void sPulse();
 };
 
 #endif

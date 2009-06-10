@@ -6,7 +6,7 @@
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
+ *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
@@ -27,60 +27,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <avr/interrupt.h>
-#include <wiring.h>
-#include <LEDStrip.h>
+#include "WConstants.h"
+#include "LEDStrip.h"
 
-/* NOTE: the code looks like it currently supports operation of the
- * sPin on either pin 9 or 10.  In actuality, only pin 9 will work.
- */
-
-uint8_t LEDStrip::attached9 = 0;
-uint8_t LEDStrip::attached10 = 0;
-
-
-void LEDStrip::startTimer1()
+LEDStrip::LEDStrip(int dPin, int sPin, int latchPin, int clkPin) 
 {
-  TCCR1B = (TCCR1B & ~_BV(CS11)) | (_BV(CS10) | _BV(CS12)); /* div 1024 clock prescaler */
-}
-
-void LEDStrip::stopTimer1()
-{
-  TCCR1B &= ~(_BV(CS12) | _BV(CS11) | _BV(CS10));
-}
-
-void LEDStrip::seizeTimer1()
-{
-  uint8_t oldSREG = SREG;
-
-  cli();
-  TCCR1A = _BV(WGM10) | _BV(WGM11);  /* Fast PWM, OCR1A is top */
-  TCCR1B = _BV(WGM13) | _BV(WGM12);  /* Fast PWM, OCR1A is top */
-
-  OCR1A = 65535 - _fadeSpeed;
-#if defined(__AVR_ATmega8__)
-  TIMSK &= ~(_BV(TICIE1) | _BV(OCIE1A) | _BV(OCIE1B) | _BV(TOIE1) );
-#else
-  TIMSK1 &=  ~(_BV(OCIE1A) | _BV(OCIE1B) | _BV(TOIE1) );
-#endif
-
-  SREG = oldSREG;  // undo cli()    
-}
-
-void LEDStrip::releaseTimer1() {}
-
-LEDStrip::LEDStrip() : _dPin(0), _sPin(0), _latchPin(0), _clkPin(0), _fadeSpeed(0) {}
-
-uint8_t LEDStrip::attach(int dPin, int sPin, int latchPin, int clkPin)
-{
-
-  if (sPin != 9 /*&& sPin != 10*/) return 0;
-  
   _dPin = dPin;
   _sPin = sPin;
   _latchPin = latchPin;
   _clkPin = clkPin;
-
+  _faderEnabled = 0;
+  
   digitalWrite(_dPin, LOW);
   pinMode(_dPin, OUTPUT);
   digitalWrite(_sPin, LOW);
@@ -89,78 +46,85 @@ uint8_t LEDStrip::attach(int dPin, int sPin, int latchPin, int clkPin)
   pinMode(_latchPin, OUTPUT);
   digitalWrite(_clkPin, LOW);
   pinMode(_clkPin, OUTPUT);
+}
 
-  if (!attached9 && !attached10) {
-    seizeTimer1();
-    setSpeed(0);
-  }
+void LEDStrip::faderCrank()
+{
+  unsigned long mymillis;
   
-  if (_sPin == 9) {
-    attached9 = 1;
-    //TCCR1A = (TCCR1A & ~_BV(COM1A0)) | _BV(COM1A1);
-    attachOCR1A();
+  if (!_faderEnabled) return;
+
+  mymillis = millis();
+
+  // Give us 250ms slop in case we don't exactly catch our edge.
+  if (mymillis >= _faderPulseNextEdge && mymillis < _faderPulseNextEdge + 250) {
+    if (digitalRead(_sPin) == HIGH) {
+      digitalWrite(_sPin, LOW);
+    } else {
+      // only load new value of _faderPulseHalfWidth on rising edge
+      digitalWrite(_sPin, HIGH);
+      _faderPulseHalfWidth = _faderPulseNewHalfWidth;
+    }
+
+    _faderPulseNextEdge = mymillis + _faderPulseHalfWidth;
   }
+}
+
+unsigned int LEDStrip::faderSpeedGet()
+{
+  return _faderPulseHalfWidth;
+}
+
+void LEDStrip::faderSpeedSet(unsigned int halfWidthms)
+{
+  if (halfWidthms == 0) {
+    _faderEnabled = 0;
+    _faderPulseHalfWidth = 0;
+    _faderPulseNewHalfWidth = 0;
+    digitalWrite(_sPin, LOW);
+    return;   
+  }
+
+  _faderPulseNewHalfWidth = halfWidthms;
   
-  if (_sPin == 10) {
-    attached10 = 1;
-    // not working
-    //TCCR1A = (TCCR1A & ~_BV(COM1B0)) | _BV(COM1B1);
+  // if we're already running, don't re-init _faderPulseNextEdge
+  if (_faderEnabled != 1) {  // starting from non-running state, 
+    _faderEnabled = 1;
+
+    digitalWrite(_sPin, HIGH);
+    _faderPulseHalfWidth = halfWidthms;
+    _faderPulseNextEdge = millis() + _faderPulseHalfWidth;
   }
-  return 1;
 }
 
-void LEDStrip::attachOCR1A()
-{
-  TCCR1A = (TCCR1A & ~_BV(COM1A1)) | _BV(COM1A0);
-}
-
-void LEDStrip::detachOCR1A()
-{
-  TCCR1A &= ~(_BV(COM1A1) | _BV(COM1A0));
-}
-
-void LEDStrip::detach()
-{
-
-  stopTimer1();
-  // muck with timer flags
-  if (_sPin == 9) {
-    attached9 = 0;
-    detachOCR1A();
-    pinMode(_sPin, INPUT);
-  } 
-  
-  if (_sPin == 10) {
-    attached10 = 0;
-    TCCR1A = TCCR1A & ~_BV(COM1B0) & ~_BV(COM1B1);
-    pinMode(_sPin, INPUT);
-  }
-
-  if (!attached9 && !attached10) releaseTimer1();
-}
-
-void LEDStrip::setSpeed(uint16_t speed)
-{
-
-  if (speed == 0) {
-    stopTimer1();
-  }
-
-  if (_sPin == 9) OCR1A = 65535 - speed;
-//  if (_sPin == 10) OCR1B = 65535 - speed;
-
-  if (speed != 0 && _fadeSpeed == 0) {
-    startTimer1();
-  }
-
-  _fadeSpeed = speed;
-
-}
-
-uint16_t LEDStrip::getSpeed() 
-{
-  return _fadeSpeed;
-}
+/* The HL1606 drives 2 RGB LED's.  Each 3-color LED is controlled with a command
+ * word consisting of 8 bits.  Command word is clocked out MSB first (i.e. D8
+ * is first bit sent)
+ *
+ * Format of command word (using conventions in datasheet):
+ *   ________________________________________________________________________
+ *  |   D1   |   D2   |   D3   |   D4   |   D5   |   D6   |   D7   |    D8   |
+ *   ------------------------------------------------------------------------
+ *   ________________________________________________________________________
+ *  |     LED1 CMD    |    LED2 CMD     |    LED3 CMD     |   2X   | LatchOK |
+ *   ------------------------------------------------------------------------
+ *
+ *   LED{1,2,3} CMD -
+ *       00 - LED off
+ *       01 - LED on (max bright)
+ *       10 - LED fade up   (start at min bright)
+ *       11 - LED fade down (start at max bright)
+ *
+ *   2X - Double fade speed
+ *       0 - 1X fade speed, each pulse on SI line steps brightness by 1/128th.
+ *       1 - 2X fade speed, each pulse on SI line steps brightness by 1/64th.    
+ *
+ *   LatchOK - Enable latch.  Set to 0 to insert 'white space' in the serial
+ *             chain.  If set to 0, the entire CMD is ignored.
+ *       0 - Do not latch this CMD when Latch is thrown.
+ *       1 - Latch CMD as normal when Latch is thrown.
+ *
+*/
 
 // Push a color value down the strip, setting the latch-enable flag.
 void LEDStrip::rgbPush(uint8_t redcmd, uint8_t greencmd, uint8_t bluecmd)
@@ -180,22 +144,19 @@ void LEDStrip::rgbPush(uint8_t redcmd, uint8_t greencmd, uint8_t bluecmd)
 
 void LEDStrip::sPulse()
 {
-  detachOCR1A();
-
   if (digitalRead(_sPin) == HIGH) {
-    delayMicroseconds(1000);
+    delay(1);
     digitalWrite(_sPin, LOW);
-    delayMicroseconds(1000);
+    delay(1);
     digitalWrite(_sPin, HIGH);
-    delayMicroseconds(1000);
+    delay(1);
   } else {
-    delayMicroseconds(1000);
+    delay(1);
     digitalWrite(_sPin, HIGH);
-    delayMicroseconds(1000);
+    delay(1);
     digitalWrite(_sPin, LOW);
-    delayMicroseconds(1000);
+    delay(1);
   }
-  attachOCR1A();
 
 }
 
@@ -219,9 +180,3 @@ void LEDStrip::latch()
   digitalWrite(_latchPin, LOW);
 }
 
-uint8_t LEDStrip::attached()
-{
-  if (_sPin == 9 && attached9) return 1;
-  if (_sPin == 10 && attached10) return 1;
-  return 0;
-}
