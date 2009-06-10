@@ -1,0 +1,9 @@
+LEDStrip	KEYWORD1
+rgbPush	KEYWORD2
+pushCmd	KEYWORD2
+blankPush	KEYWORD2
+latch	KEYWORD2
+faderSpeedSet	KEYWORD2
+faderSpeedGet	KEYWORD2
+faderCrank	KEYWORD2
+sPulse	KEYWORD2
