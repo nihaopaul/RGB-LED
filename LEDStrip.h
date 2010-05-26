@@ -61,6 +61,8 @@ class LEDStrip
     void pushCmd(uint8_t);
     void blankPush();
     void latch();
+    void sleep();
+    void wakeup();
     void faderSpeedSet(unsigned int);
     unsigned int faderSpeedGet();
     void faderCrank();

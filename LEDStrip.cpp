@@ -48,6 +48,31 @@ LEDStrip::LEDStrip(int dPin, int sPin, int latchPin, int clkPin)
   pinMode(_clkPin, OUTPUT);
 }
 
+void LEDStrip::sleep()
+{
+  digitalWrite(_dPin, LOW);
+  pinMode(_dPin, INPUT);
+  digitalWrite(_sPin, LOW);
+  pinMode(_sPin, INPUT);
+  digitalWrite(_latchPin, LOW);
+  pinMode(_latchPin, INPUT);
+  digitalWrite(_clkPin, LOW);
+  pinMode(_clkPin, INPUT);
+}
+
+
+void LEDStrip::wakeup()
+{
+  digitalWrite(_dPin, LOW);
+  pinMode(_dPin, OUTPUT);
+  digitalWrite(_sPin, LOW);
+  pinMode(_sPin, OUTPUT);
+  digitalWrite(_latchPin, LOW);
+  pinMode(_latchPin, OUTPUT);
+  digitalWrite(_clkPin, LOW);
+  pinMode(_clkPin, OUTPUT);
+}
+
 void LEDStrip::faderCrank()
 {
   unsigned long mymillis;
