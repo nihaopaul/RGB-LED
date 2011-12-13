@@ -27,7 +27,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
 #include "WConstants.h"
+#endif
 #include "LEDStrip.h"
 
 LEDStrip::LEDStrip(int dPin, int sPin, int latchPin, int clkPin) 
